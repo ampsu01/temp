@@ -1,0 +1,189 @@
+https://eyecandyzero.tistory.com/21
+https://jeong-pro.tistory.com/134
+https://dpdpwl.tistory.com/16
+https://seoulbliss.tistory.com/m/67?category=853521
+https://gdtbgl93.tistory.com/144
+https://bcp0109.tistory.com/category/%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98%20%EB%AC%B8%EC%A0%9C/%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98
+https://blog.naver.com/0neslife/221034955935
+
+
+[Server.java]
+import java.net.ServerSocket;
+import java.net.Socket;
+public class Server {
+ /**
+  * @param args
+  */
+ public static void main(String[] args) {
+  ServerSocket serverSocket = null;
+  try{
+   serverSocket = new ServerSocket(9000);
+   while(true){
+    Socket socket = serverSocket.accept();
+    Thread thread = new PerClientThread(socket);
+    thread.start();
+   }
+  } catch (Exception e){
+   System.out.println(e.getMessage());
+  }
+ }
+}
+
+
+
+
+
+[Client.java]
+import java.net.Socket;
+
+public class Client {
+ public static void main(String[] args){
+  if (args.length != 1){
+   System.out.println("input name!");
+   return;
+  }
+  
+  try{
+   Socket socket = new Socket("127.0.0.1", 9000);
+   Thread thread1 = new SenderThread(socket, args[0]);
+   Thread thread2 = new ReceiverThread(socket);
+   thread1.start();
+   thread2.start();
+  } catch (Exception e){
+   System.out.println(e.getMessage());
+  }
+ }
+}
+
+
+[PerClientThread.java]
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class PerClientThread extends Thread{
+ static List<PrintWriter> list = Collections.synchronizedList(new ArrayList<PrintWriter>());
+ 
+ Socket socket;
+ 
+ PrintWriter writer;
+ public PerClientThread(Socket socket) {
+  this.socket =  socket;
+  
+  try{
+   writer = new PrintWriter(socket.getOutputStream());
+   list.add(writer);
+  } catch (Exception e) {
+   System.out.println(e.getMessage());
+  }
+ }
+ 
+ public void run(){
+  String name = null;
+  try{
+   BufferedReader reader =  new BufferedReader(new InputStreamReader(socket.getInputStream()));
+   name =  reader.readLine();
+   sendAll("#" + name + " is Joined");
+   while(true){
+    String str = reader.readLine();
+    if(str == null){
+     break;
+    }
+    sendAll(name + ">" + str);
+   }
+  } catch (Exception e){
+   System.out.println(e.getMessage());
+  } finally {
+   list.remove(writer);
+   sendAll("#" + name + " is out");
+   try{
+    socket.close();
+   } catch (Exception ignored) {    
+   }
+  }
+ }
+ 
+ private void sendAll(String str) {
+  for (PrintWriter writer : list){
+   writer.println(str);
+   writer.flush();
+  }
+ }
+ 
+}
+
+
+[ReceiverThread.java]
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.Socket;
+
+public class ReceiverThread extends Thread{
+ Socket socket;
+ ReceiverThread(Socket socket){
+  this.socket = socket;
+ }
+ 
+ public void run() {
+  try{
+   BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+   while(true){
+    String str = reader.readLine();
+    if (str == null){
+     break;
+    }
+    System.out.println(str);
+   }
+  } catch (IOException e){
+   System.out.println(e.getMessage());
+  }
+ }
+}
+
+
+[SenderThread.java]
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+
+public class SenderThread  extends Thread{
+ Socket socket;
+ String name;
+ SenderThread (Socket socket, String name){
+  this.socket = socket;
+  this.name = name;
+ }
+ public void run(){
+  try {
+   BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+   PrintWriter writer = new PrintWriter(socket.getOutputStream());
+   writer.println(name);
+   writer.flush();
+   
+   while(true){
+    String str = reader.readLine();
+    if (str.equals("bye")) break;
+    writer.println(str);
+    writer.flush();
+   }
+  } catch (Exception e){
+   System.out.println(e.getMessage());
+  } finally {
+   try {
+    socket.close();
+   } catch (Exception ignored) {}   
+  }
+ }
+}
+
+
+
+
+
+
